@@ -27,6 +27,10 @@
     "@tailwindcss/vite": "^4.2.1",
     "tailwindcss": "^4.2.1"
   },
+  "files": [
+    "dist",
+    "src/App.css"
+  ],
   "peerDependencies": {
     "moment": "^2.30.1",
     "moment-timezone": "^0.6.0",
