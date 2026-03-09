@@ -9,9 +9,9 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'slotrix',
+      name: 'slotrix-calendar',
       formats: ['es', 'umd'],
-      fileName: (format) => `slotrix.${format}.js`,
+      fileName: (format) => `slotrix-calendar.${format}.js`,
     },
     rollupOptions: {
       external: ['react', 'react-dom', 'moment', 'moment-timezone'],

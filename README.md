@@ -1,6 +1,6 @@
-# slotrix
+# slotrix-calendar
 
-A powerful, framework-agnostic, and highly customizable React calendar component library. Built with performance and elegance in mind, `slotrix` provides a premium scheduling experience out of the box.
+A powerful, framework-agnostic, and highly customizable React calendar component library. Built with performance and elegance in mind, `slotrix-calendar` provides a premium scheduling experience out of the box.
 
 ## ✨ Features
 
@@ -16,20 +16,20 @@ A powerful, framework-agnostic, and highly customizable React calendar component
 Install via npm:
 
 ```bash
-npm install slotrix
+npm install slotrix-calendar
 ```
 
 Or via yarn:
 
 ```bash
-yarn add slotrix
+yarn add slotrix-calendar
 ```
 
 ## 📖 Quick Start
 
 ```tsx
-import { WeekView, DayView, MonthView } from 'slotrix';
-import 'slotrix/style.css'; // Import the required styles
+import { WeekView, DayView, MonthView } from 'slotrix-calendar';
+import 'slotrix-calendar/style.css'; // Import the required styles
 import moment from 'moment-timezone';
 import 'moment/locale/en-gb'; // Optional: Load your preferred locale
 

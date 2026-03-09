@@ -1,5 +1,5 @@
 {
-  "name": "slotrix",
+  "name": "slotrix-calendar",
   "version": "1.0.0",
   "type": "module",
   "description": "A powerful, framework-agnostic, and highly customizable React calendar component library.",
@@ -8,19 +8,19 @@
     "dev": "vite",
     "build": "vite build"
   },
-  "main": "dist/slotrix.umd.js",
-  "module": "dist/slotrix.es.js",
+  "main": "dist/slotrix-calendar.umd.js",
+  "module": "dist/slotrix-calendar.es.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/Surya9122prakash/slotrix.git"
   },
-  "style": "dist/slotrix.css",
+  "style": "dist/slotrix-calendar.css",
   "exports": {
     ".": {
-      "import": "./dist/slotrix.es.js",
-      "require": "./dist/slotrix.umd.js"
+      "import": "./dist/slotrix-calendar.es.js",
+      "require": "./dist/slotrix-calendar.umd.js"
     },
-    "./style.css": "./dist/slotrix.css"
+    "./style.css": "./dist/slotrix-calendar.css"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
