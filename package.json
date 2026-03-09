@@ -7,8 +7,8 @@
     "prepublish": "rm -rf ./dist && npm run build",
     "build": "vite build"
   },
-  "main": "./dist/slotrix-calendar.umd.cjs",
-  "module": "./dist/slotrix-calendar.js",
+  "main": "./dist/slotrix-calendar.umd.js",
+  "module": "./dist/slotrix-calendar.es.js",
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/slotrix-calendar.js",
+      "import": "./dist/slotrix-calendar.es.js",
       "require": "./dist/slotrix-calendar.umd.js"
     }
   },
