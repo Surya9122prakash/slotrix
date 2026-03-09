@@ -4,22 +4,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "type-check": "tsc --noEmit"
+    "prepublish": "rm -rf ./dist && npm run build",
+    "build": "vite build"
   },
   "main": "./dist/slotrix-calendar.umd.cjs",
   "module": "./dist/slotrix-calendar.js",
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-component.git"
+    "url": "https://github.com/Surya9122prakash/slotrix.git"
   },
   "exports": {
     ".": {
-      "import": "./dist/your-component.es.js",
-      "require": "./dist/your-component.umd.js"
+      "import": "./dist/slotrix-calendar.js",
+      "require": "./dist/slotrix-calendar.umd.js"
     }
   },
   "publishConfig": {
