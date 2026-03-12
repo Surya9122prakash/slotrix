@@ -12,9 +12,9 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'slotrix',
+      name: 'slotsched',
       formats: ['es', 'umd'],
-      fileName: (format) => `slotrix.${format}.js`,
+      fileName: (format) => `slotsched.${format}.js`,
     },
     rollupOptions: {
       external: [/^react/, 'moment', 'moment-timezone'],
