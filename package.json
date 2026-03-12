@@ -25,7 +25,6 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-react": "^5.1.4",
-    "slotrix-calendar": "file:slotrix-calendar-1.1.7.tgz",
     "tailwindcss": "^4.2.1"
   },
   "files": [
