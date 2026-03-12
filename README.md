@@ -1,6 +1,6 @@
-# slotrix
+# slotsched
 
-A powerful, framework-agnostic, and highly customizable React calendar component library. Built with performance and elegance in mind, `slotrix` provides a premium scheduling experience out of the box.
+A powerful, framework-agnostic, and highly customizable React calendar component library. Built with performance and elegance in mind, `slotsched` provides a premium scheduling experience out of the box.
 
 ---
 
@@ -23,13 +23,7 @@ A powerful, framework-agnostic, and highly customizable React calendar component
 Install via npm:
 
 ```bash
-npm install slotrix
-```
-
-Or via yarn:
-
-```bash
-yarn add slotrix
+npm install slotsched
 ```
 
 ---
@@ -37,7 +31,7 @@ yarn add slotrix
 ## 📖 Quick Start
 
 ```tsx
-import { WeekView, DayView, MonthView } from 'slotrix';
+import { WeekView, DayView, MonthView } from 'slotsched';
 import moment from 'moment-timezone';
 
 const App = () => {
@@ -112,7 +106,7 @@ All calendar views (`DayView`, `WeekView`, `MonthView`) accept the following pro
 
 ## 🎨 Themes and Visuals
 
-`slotrix` comes packed with 10 predefined calendar themes and 10 conflict alert templates.
+`slotsched` comes packed with 10 predefined calendar themes and 10 conflict alert templates.
 
 ### Calendar Themes (`calendarThemeVariant`)
 
@@ -131,7 +125,7 @@ All calendar views (`DayView`, `WeekView`, `MonthView`) accept the following pro
 
 ### Conflict Alert Templates (`conflictThemeVariant`)
 
-When events overlap, `slotrix` can display a modal using these templates:
+When events overlap, `slotsched` can display a modal using these templates:
 
 - `classic_red`: Standard urgent alert.
 - `amber_warning`: Cautionary scheduling warning.
@@ -232,4 +226,4 @@ export interface NavigationActions {
 
 ## 📄 License
 
-MIT © [slotrix](https://github.com/Surya9122prakash/slotrix)
+MIT © [slotsched](https://github.com/Surya9122prakash/slotrix)
