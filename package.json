@@ -1,5 +1,5 @@
 {
-  "name": "slotsched",
+  "name": "slotronix",
   "version": "1.0.0",
   "type": "module",
   "description": "A powerful, framework-agnostic, and highly customizable React calendar component library.",
@@ -8,19 +8,19 @@
     "dev": "vite",
     "build": "vite build"
   },
-  "main": "dist/slotsched-calendar.umd.js",
-  "module": "dist/slotsched-calendar.es.js",
+  "main": "dist/slotronix.umd.js",
+  "module": "dist/slotronix.es.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/Surya9122prakash/slotrix.git"
   },
-  "style": "dist/slotsched-calendar.css",
+  "style": "dist/slotronix.css",
   "exports": {
     ".": {
-      "import": "./dist/slotsched-calendar.es.js",
-      "require": "./dist/slotsched-calendar.umd.js"
+      "import": "./dist/slotronix.es.js",
+      "require": "./dist/slotronix.umd.js"
     },
-    "./style.css": "./dist/slotsched-calendar.css"
+    "./style.css": "./dist/slotronix.css"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
