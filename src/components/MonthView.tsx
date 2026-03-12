@@ -5,28 +5,52 @@ import { normalizeDate, getDayEvents } from "./utils";
 import { PREDEFINED_CALENDAR_THEMES } from "./calendarThemes";
 import { EventFormModal } from "./EventFormModal";
 import { PluginManager } from "./pluginSystem";
-import { PREDEFINED_CONFLICT_TEMPLATES } from "./conflictTemplates";
 
 export const MonthView: React.FC<CalendarProps> = ({
-    timezone,
+    timezone = moment.tz.guess() || "UTC",
     timezoneLabelInclude = false,
-    selectedDate,
-    onDateChange,
-    events,
+    dateFormat = "MMMM YYYY",
+    timeFormat = "HH:mm",
+    selectedDate: externalSelectedDate,
+    onDateChange: externalOnDateChange,
+    events: externalEvents,
     onEventChange,
     navigationPosition = "center",
     renderNavigation,
-    onAddEvent,
-    onEditEvent,
-    onDeleteEvent,
-    formFields,
-    onlyCreateEditRequired,
+    onAddEvent: externalOnAddEvent,
+    onEditEvent: externalOnEditEvent,
+    onDeleteEvent: externalOnDeleteEvent,
+    formFields: externalFormFields,
+    onlyCreateEditRequired = true,
     plugins,
-    conflictTemplate,
-    conflictThemeVariant,
     calendarTheme,
     calendarThemeVariant,
 }) => {
+    // Uncontrolled State Fallbacks
+    const [internalDate, setInternalDate] = useState<moment.Moment>(() => moment.tz(externalSelectedDate || new Date(), timezone));
+    const selectedDate = externalSelectedDate !== undefined ? externalSelectedDate : internalDate;
+    const onDateChange = (date: moment.Moment) => {
+        if (externalOnDateChange) {
+            externalOnDateChange(date);
+        } else {
+            setInternalDate(date);
+        }
+    };
+
+    const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>(() => externalEvents || []);
+    const events = externalEvents !== undefined ? externalEvents : internalEvents;
+
+    const onAddEvent = externalOnAddEvent || ((event: CalendarEvent) => setInternalEvents((prev) => [...prev, event]));
+    const onEditEvent = externalOnEditEvent || ((event: CalendarEvent) => setInternalEvents((prev) => prev.map((e) => (e.id === event.id ? event : e))));
+    const onDeleteEvent = externalOnDeleteEvent || ((id: string) => setInternalEvents((prev) => prev.filter((e) => e.id !== id)));
+
+    const formFields = externalFormFields || [
+        { name: "title", label: "Event Title", type: "text", required: true },
+        { name: "description", label: "Description", type: "textarea" },
+        { name: "start", label: "Start Time", type: "datetime-local", required: true },
+        { name: "end", label: "End Time", type: "datetime-local", required: true },
+    ];
+
     const zonedDate = useMemo(
         () => normalizeDate(selectedDate, timezone),
         [selectedDate, timezone]
@@ -98,7 +122,7 @@ export const MonthView: React.FC<CalendarProps> = ({
     const dateNode = (
         <div className="text-center flex flex-col items-center">
             <h2 className="text-xl font-semibold">
-                {zonedDate.format("MMMM YYYY")}
+                {zonedDate.format(dateFormat)}
             </h2>
             {timezoneLabelInclude && (
                 <p className="text-xs mt-1" style={{ color: "var(--calendar-secondary-text)" }}>
@@ -130,46 +154,62 @@ export const MonthView: React.FC<CalendarProps> = ({
         </div>
     );
 
-    const navNode = renderNavigation ? renderNavigation({ goToPreviousDay: goToPreviousMonth, goToNextDay: goToNextMonth, goToToday }) : null;
+    const navNode = renderNavigation ? renderNavigation({
+        goToPreviousDay: goToPreviousMonth,
+        goToNextDay: goToNextMonth,
+        goToToday,
+        dateNode,
+        prevNode,
+        nextNode,
+        defaultNav,
+        currentDate: zonedDate,
+        timezone,
+    }) : null;
 
     return (
-        <div className="flex flex-col flex-1 min-h-0" style={{ ...themeStyles, backgroundColor: "var(--calendar-bg)", color: "var(--calendar-text)" }}>
+        <div className="flex flex-col flex-1 h-full w-full min-h-0 no-scrollbar" style={{ ...themeStyles, backgroundColor: "var(--calendar-bg)", color: "var(--calendar-text)" }}>
             {/* HEADER */}
-            <div className="sticky top-0 z-20 border-b px-6 py-4 flex items-center min-h-[80px]" style={{ backgroundColor: "var(--calendar-bg)", borderColor: "var(--calendar-grid)" }}>
-                {navigationPosition === "left" && (
-                    <>
-                        <div className="flex-1 flex justify-start items-center">
-                            {navNode || defaultNav}
-                        </div>
-                        <div className="flex-1 flex justify-center items-center">
-                            {dateNode}
-                        </div>
-                        <div className="flex-1 flex justify-end items-center" />
-                    </>
-                )}
-                {navigationPosition === "center" && (
-                    <>
-                        <div className="flex-1 flex justify-start items-center" />
-                        <div className="flex-1 flex justify-center items-center gap-4">
-                            {navNode ? navNode : prevNode}
-                            {dateNode}
-                            {!navNode && nextNode}
-                        </div>
-                        <div className="flex-1 flex justify-end items-center" />
-                    </>
-                )}
-                {navigationPosition === "right" && (
-                    <>
-                        <div className="flex-1 flex justify-start items-center" />
-                        <div className="flex-1 flex justify-center items-center">
-                            {dateNode}
-                        </div>
-                        <div className="flex-1 flex justify-end items-center gap-4">
-                            {navNode || defaultNav}
-                        </div>
-                    </>
-                )}
-            </div>
+            {renderNavigation !== undefined && renderNavigation !== null ? (
+                <div key="custom-nav-wrapper">
+                    {navNode}
+                </div>
+            ) : (
+                <div className="sticky top-0 z-20 border-b px-6 py-4 flex items-center min-h-[80px]" style={{ backgroundColor: "var(--calendar-bg)", borderColor: "var(--calendar-grid)" }}>
+                    {navigationPosition === "left" && (
+                        <>
+                            <div className="flex-1 flex justify-start items-center">
+                                {defaultNav}
+                            </div>
+                            <div className="flex-1 flex justify-center items-center">
+                                {dateNode}
+                            </div>
+                            <div className="flex-1 flex justify-end items-center" />
+                        </>
+                    )}
+                    {navigationPosition === "center" && (
+                        <>
+                            <div className="flex-1 flex justify-start items-center" />
+                            <div className="flex-1 flex justify-center items-center gap-4">
+                                {prevNode}
+                                {dateNode}
+                                {nextNode}
+                            </div>
+                            <div className="flex-1 flex justify-end items-center" />
+                        </>
+                    )}
+                    {navigationPosition === "right" && (
+                        <>
+                            <div className="flex-1 flex justify-start items-center" />
+                            <div className="flex-1 flex justify-center items-center">
+                                {dateNode}
+                            </div>
+                            <div className="flex-1 flex justify-end items-center gap-4">
+                                {defaultNav}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* GRID HEADER */}
             <div className="grid grid-cols-7 border-b" style={{ borderColor: "var(--calendar-grid)" }}>
@@ -198,12 +238,12 @@ export const MonthView: React.FC<CalendarProps> = ({
                                     opacity: isCurrentMonth ? 1 : 0.5
                                 }}
                                 onDoubleClick={() => {
-                                    if (onAddEvent && onlyCreateEditRequired) {
+                                    if (onlyCreateEditRequired) {
                                         const start = day.clone().hour(9).minute(0);
                                         const end = start.clone().add(1, "hour");
                                         setFormData({
-                                            start: start.format("YYYY-MM-DDTHH:mm"),
-                                            end: end.format("YYYY-MM-DDTHH:mm")
+                                            start: start.format(`${dateFormat || "YYYY-MM-DD"}T${timeFormat || "HH:mm"}`),
+                                            end: end.format(`${dateFormat || "YYYY-MM-DD"}T${timeFormat || "HH:mm"}`)
                                         });
                                         setIsFormOpen(true);
                                     }
@@ -222,14 +262,15 @@ export const MonthView: React.FC<CalendarProps> = ({
                                     {dayEvents.slice(0, 4).map(event => (
                                         <div
                                             key={event.id}
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 pluginManager.triggerOnEventClick(event);
-                                                if (onEditEvent && onlyCreateEditRequired) {
+                                                if (onlyCreateEditRequired) {
                                                     setEditingEvent(event);
                                                     setFormData({
                                                         ...event,
-                                                        start: moment(event.start).tz(timezone).format("YYYY-MM-DDTHH:mm"),
-                                                        end: moment(event.end).tz(timezone).format("YYYY-MM-DDTHH:mm"),
+                                                        start: moment(event.start).tz(timezone).format(`${dateFormat || "YYYY-MM-DD"}T${timeFormat || "HH:mm"}`),
+                                                        end: moment(event.end).tz(timezone).format(`${dateFormat || "YYYY-MM-DD"}T${timeFormat || "HH:mm"}`),
                                                     });
                                                     setIsFormOpen(true);
                                                 }
@@ -258,22 +299,26 @@ export const MonthView: React.FC<CalendarProps> = ({
             </div>
 
             {/* INTERNAL CREATE / EDIT MODAL */}
-            {onlyCreateEditRequired && (
-                <EventFormModal
-                    isOpen={isFormOpen}
-                    onClose={resetForm}
-                    editingEvent={editingEvent}
-                    formData={formData}
-                    setFormData={setFormData}
-                    formFields={formFields}
-                    timezone={timezone}
-                    onAddEvent={onAddEvent}
-                    onEditEvent={onEditEvent}
-                    onDeleteEvent={onDeleteEvent}
-                    pluginManager={pluginManager}
-                    conflictTemplate={conflictTemplate || (conflictThemeVariant ? (PREDEFINED_CONFLICT_TEMPLATES as any)[conflictThemeVariant] : undefined)}
-                />
-            )}
-        </div>
+            {
+                onlyCreateEditRequired && (
+                    <EventFormModal
+                        isOpen={isFormOpen}
+                        onClose={resetForm}
+                        editingEvent={editingEvent}
+                        formData={formData}
+                        setFormData={setFormData}
+                        formFields={formFields}
+                        timezone={timezone}
+                        dateFormat={dateFormat}
+                        timeFormat={timeFormat}
+                        onAddEvent={onAddEvent}
+                        onEditEvent={onEditEvent}
+                        onDeleteEvent={onDeleteEvent}
+                        pluginManager={pluginManager}
+                        events={events}
+                    />
+                )
+            }
+        </div >
     );
 };

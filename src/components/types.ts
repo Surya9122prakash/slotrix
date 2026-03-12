@@ -47,6 +47,7 @@ export interface Plugin {
         onEventRender?: (event: CalendarEvent, element: HTMLDivElement) => void;
         onEventClick?: (event: CalendarEvent) => void;
         afterRender?: (context: PluginContext) => void;
+        onEventChange?: (event: CalendarEvent) => void;
         validateSave?: (event: CalendarEvent, context: PluginContext) => string | null;
     };
 }
@@ -71,15 +72,28 @@ export interface CalendarTheme {
     eventDefaultTextColor: string;
 }
 
-export interface CalendarProps {
+export interface NavigationActions {
+    goToPreviousDay: () => void;
+    goToNextDay: () => void;
+    goToToday: () => void;
+    dateNode: React.ReactNode;
+    prevNode: React.ReactNode;
+    nextNode: React.ReactNode;
+    defaultNav: React.ReactNode;
+    currentDate: moment.Moment;
     timezone: string;
-    timezoneLabelInclude?: boolean;
-    slotInterval: number;
-    dateFormat: string;
-    timeFormat: string;
+}
 
-    selectedDate: moment.Moment | string | Date;
-    onDateChange: (date: moment.Moment) => void;
+export interface CalendarProps {
+    timezone?: string;
+    timezoneLabelInclude?: boolean;
+    slotInterval?: number;
+    dateFormat?: string;
+    timeFormat?: string;
+    showTimeSlots?: boolean;
+
+    selectedDate?: moment.Moment | string | Date;
+    onDateChange?: (date: moment.Moment) => void;
 
     events?: CalendarEvent[];
     onEventChange?: (event: CalendarEvent) => void;
@@ -87,11 +101,7 @@ export interface CalendarProps {
     navigationPosition?: "left" | "center" | "right";
     showTodayBelow?: boolean;
 
-    renderNavigation?: (actions: {
-        goToPreviousDay: () => void;
-        goToNextDay: () => void;
-        goToToday: () => void;
-    }) => React.ReactNode;
+    renderNavigation?: (actions: NavigationActions) => React.ReactNode;
 
     showEmptyState?: boolean;
 

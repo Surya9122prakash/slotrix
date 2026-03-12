@@ -5,17 +5,26 @@ export const SLOT_HEIGHT = 64;
 
 export const normalizeDate = (d: any, timezone: string) => moment.utc(d).tz(timezone);
 
+const TIME_FORMATS = ["HH:mm", "hh:mm A", "h:mm a", "H:mm", "h:mmA", "h:mma", "hh:mm a", "HH:mm:ss"];
+
+const parseTimeStr = (t: string) => {
+    return moment(t, TIME_FORMATS, true);
+};
+
+const getMinutesFromTimeStr = (t: string) => {
+    const m = parseTimeStr(t);
+    if (!m.isValid()) return 0;
+    return m.hours() * 60 + m.minutes();
+};
+
 export const getWorkingHoursRange = (enabledTimeInterval?: { start: string; end: string }[]) => {
     if (enabledTimeInterval?.length) {
         const start = enabledTimeInterval[0].start;
         const end = enabledTimeInterval[enabledTimeInterval.length - 1].end;
 
-        const [sh, sm] = start.split(":").map(Number);
-        const [eh, em] = end.split(":").map(Number);
-
         return {
-            startMinutes: sh * 60 + sm,
-            endMinutes: eh * 60 + em,
+            startMinutes: getMinutesFromTimeStr(start),
+            endMinutes: getMinutesFromTimeStr(end),
         };
     }
 
@@ -43,13 +52,20 @@ export const checkIsSlotEnabled = (
     enabledTimeInterval?: { start: string; end: string }[],
     disableTimeInterval?: { start: string; end: string }[]
 ) => {
-    const timeStr = slot.format("HH:mm");
+    const timeStrHHmm = slot.format("HH:mm");
+
+    const matchesSlotList = (list: string[]) => {
+        return list.some(t => {
+            const m = parseTimeStr(t);
+            return m.isValid() && m.format("HH:mm") === timeStrHHmm;
+        });
+    };
 
     if (enabledTimeSlots?.length) {
-        return enabledTimeSlots.includes(timeStr);
+        return matchesSlotList(enabledTimeSlots);
     }
 
-    if (disabledTimeSlots?.includes(timeStr)) {
+    if (disabledTimeSlots?.length && matchesSlotList(disabledTimeSlots)) {
         return false;
     }
 
@@ -60,9 +76,9 @@ export const checkIsSlotEnabled = (
         if (!intervals?.length) return invert ? true : false;
         const minutes = slot.hours() * 60 + slot.minutes();
         const match = intervals.some((int) => {
-            const [sh, sm] = int.start.split(":").map(Number);
-            const [eh, em] = int.end.split(":").map(Number);
-            return minutes >= sh * 60 + sm && minutes < eh * 60 + em;
+            const startMins = getMinutesFromTimeStr(int.start);
+            const endMins = getMinutesFromTimeStr(int.end);
+            return minutes >= startMins && minutes < endMins;
         });
         return invert ? !match : match;
     };
@@ -172,48 +188,62 @@ export const calculateLayoutEvents = (
     });
 };
 
-export const detectConflicts = (events: CalendarEvent[], timezone: string) => {
-    const conflicts: {
-        eventId: string;
-        withId: string;
-        eventTitle: string;
-        withTitle: string;
-        overlapStart: string;
-        overlapEnd: string;
-    }[] = [];
-    const sorted = [...events].sort((a, b) =>
-        moment(a.start).tz(timezone).valueOf() - moment(b.start).tz(timezone).valueOf()
-    );
+interface ConflictDetail {
+    eventId: string;
+    withId: string;
+    eventTitle: string;
+    withTitle: string;
+    overlapStart: string;
+    overlapEnd: string;
+}
 
-    for (let i = 0; i < sorted.length; i++) {
-        for (let j = i + 1; j < sorted.length; j++) {
-            const aStart = moment(sorted[i].start).tz(timezone);
-            const aEnd = moment(sorted[i].end).tz(timezone);
-            const bStart = moment(sorted[j].start).tz(timezone);
-            const bEnd = moment(sorted[j].end).tz(timezone);
+export const detectConflicts = (events: CalendarEvent[], timezone: string): ConflictDetail[] => {
+    console.log("[detectConflicts] Checking events count:", events.length, "Timezone:", timezone);
+    console.log("[detectConflicts] Events data:", events.map(e => ({ id: e.id, title: e.title, start: e.start, end: e.end })));
+    if (events.length < 2) return [];
 
-            if (aStart.isBefore(bEnd) && aEnd.isAfter(bStart)) {
-                const overlapStart = moment.max(aStart, bStart);
-                const overlapEnd = moment.min(aEnd, bEnd);
+    const conflicts: ConflictDetail[] = [];
+
+    // 1. Normalize and Sort
+    const normalized = events.map(e => ({
+        ...e,
+        _mStart: moment.tz(e.start, timezone),
+        _mEnd: moment.tz(e.end, timezone)
+    })).filter(e => e._mStart.isValid() && e._mEnd.isValid());
+
+    // Sort by start time
+    normalized.sort((a, b) => a._mStart.diff(b._mStart));
+
+    // 2. Pairwise Comparison
+    for (let i = 0; i < normalized.length; i++) {
+        for (let j = i + 1; j < normalized.length; j++) {
+            const a = normalized[i];
+            const b = normalized[j];
+
+            // If a starts before b ends AND a ends after b starts, they overlap
+            if (a._mStart.isBefore(b._mEnd) && a._mEnd.isAfter(b._mStart)) {
+                const overlapStart = moment.max(a._mStart, b._mStart);
+                const overlapEnd = moment.min(a._mEnd, b._mEnd);
 
                 conflicts.push({
-                    eventId: sorted[i].id,
-                    withId: sorted[j].id,
-                    eventTitle: sorted[i].title,
-                    withTitle: sorted[j].title,
+                    eventId: a.id,
+                    withId: b.id,
+                    eventTitle: a.title,
+                    withTitle: b.title,
                     overlapStart: overlapStart.toISOString(),
                     overlapEnd: overlapEnd.toISOString()
                 });
                 conflicts.push({
-                    eventId: sorted[j].id,
-                    withId: sorted[i].id,
-                    eventTitle: sorted[j].title,
-                    withTitle: sorted[i].title,
+                    eventId: b.id,
+                    withId: a.id,
+                    eventTitle: b.title,
+                    withTitle: a.title,
                     overlapStart: overlapStart.toISOString(),
                     overlapEnd: overlapEnd.toISOString()
                 });
             }
         }
     }
+    console.log("[detectConflicts] Conflicts found:", conflicts.length);
     return conflicts;
 };

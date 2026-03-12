@@ -43,6 +43,12 @@ export class PluginManager {
         });
     }
 
+    triggerOnEventChange(event: CalendarEvent) {
+        this.plugins.forEach((p) => {
+            if (p.hooks?.onEventChange) p.hooks.onEventChange(event);
+        });
+    }
+
     triggerValidateSave(event: CalendarEvent): string[] {
         const errors: string[] = [];
         this.plugins.forEach((p) => {

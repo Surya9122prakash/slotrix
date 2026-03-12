@@ -1,63 +1,64 @@
-# slotrix-calendar
+# slotrix
 
-A powerful, framework-agnostic, and highly customizable React calendar component library. Built with performance and elegance in mind, `slotrix-calendar` provides a premium scheduling experience out of the box.
+A powerful, framework-agnostic, and highly customizable React calendar component library. Built with performance and elegance in mind, `slotrix` provides a premium scheduling experience out of the box.
 
-## ✨ Features
+---
 
-- 📅 **Integrated Scheduling**: Comprehensive event management and visualization.
+## ✨ Key Features
+
+- 📅 **Integrated Scheduling**: Comprehensive event management with Day, Week, and Month views.
 - ⚡ **Framework Agnostic**: Packaged as a library that plays well with standard React workflows.
-- 🎨 **Premium UI**: Modern, clean, and responsive design using Tailwind CSS principles.
-- 🛠️ **Highly Extensible**: Plugin-ready architecture and customizable props.
+- 🎨 **Premium UI**: Modern, clean, and responsive design with built-in glassmorphism and cyberpunk themes.
+- 🛠️ **Highly Extensible**: Plugin-ready architecture allowing you to hook into rendering, clicking, and saving workflows.
 - 🌐 **Timezone Aware**: Robust handling of complex timezones via `moment-timezone`.
 - 🧩 **Type Safe**: First-class TypeScript support with included declaration files.
+- 🚀 **Interactive Navigation**: Built-in support for "Today", "Prev", and "Next" actions with customizable renders.
+- ⚠️ **Conflict Detection**: Built-in conflict detection engine with multiple warning themes.
+- 📝 **Dynamic Forms**: Auto-generated event forms with support for various field types (dropdowns, color pickers, attachments).
+
+---
 
 ## 🚀 Installation
 
 Install via npm:
 
 ```bash
-npm install slotrix-calendar
+npm install slotrix
 ```
 
 Or via yarn:
 
 ```bash
-yarn add slotrix-calendar
+yarn add slotrix
 ```
+
+---
 
 ## 📖 Quick Start
 
 ```tsx
-import { WeekView, DayView, MonthView } from 'slotrix-calendar';
-import 'slotrix-calendar/style.css'; // Import the required styles
+import { WeekView, DayView, MonthView } from 'slotrix';
 import moment from 'moment-timezone';
-import 'moment/locale/en-gb'; // Optional: Load your preferred locale
 
 const App = () => {
-  const handleEventChange = (events) => {
-    console.log('Events updated:', events);
-  };
-
   const handleDateChange = (date) => {
     console.log('Selected date:', date.format());
   };
 
   return (
-    <div style={{ height: '800px', display: 'flex', flexDirection: 'column' }}>
-      <WeekView 
+    <div style={{ height: '800px' }}>
+      <DayView 
         timezone="America/New_York"
         selectedDate={moment()}
         onDateChange={handleDateChange}
-        slotInterval={30}
-        dateFormat="YYYY-MM-DD"
-        timeFormat="HH:mm"
-        onEventChange={handleEventChange}
+        slotInterval={60}
+        calendarThemeVariant="emerald_forest"
         events={[
           {
             id: '1',
-            title: 'Team Meeting',
-            start: moment().hour(10).minute(0).format(),
-            end: moment().hour(11).minute(0).format(),
+            title: 'Team Sync',
+            start: moment().hour(10).minute(0).toISOString(),
+            end: moment().hour(11).minute(0).toISOString(),
           }
         ]}
       />
@@ -68,73 +69,167 @@ const App = () => {
 export default App;
 ```
 
-## ⚙️ Props (`CalendarProps`)
+---
 
-All calendar views (`DayView`, `WeekView`, `MonthView`) accept the following props:
+## ⚙️ Props Global Reference
+
+All calendar views (`DayView`, `WeekView`, `MonthView`) accept the following properties:
 
 ### Core Configuration
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `timezone` | `string` | **Required.** The timezone strings (e.g., `"America/New_York"`). |
-| `timezoneLabelInclude` | `boolean` | Whether to display the timezone label. |
-| `selectedDate` | `moment.Moment \| string \| Date` | **Required.** The currently selected date to display. |
-| `onDateChange` | `(date: moment.Moment) => void` | **Required.** Callback triggered when navigating dates. |
-| `slotInterval` | `number` | **Required.** Duration of each time slot in minutes (e.g., 30). |
-| `dateFormat` | `string` | **Required.** Format for dates. |
-| `timeFormat` | `string` | **Required.** Display format for time (default: `HH:mm`). |
+| Prop                     | Type                              | Description                                                       |
+| ------------------------ | --------------------------------- | ----------------------------------------------------------------- |
+| `timezone`             | `string`                        | The timezone string (e.g.,`"America/New_York"`).                |
+| `timezoneLabelInclude` | `boolean`                       | Whether to display the timezone label next to the date.           |
+| `selectedDate`         | `moment.Moment \| string \| Date` | The currently selected date to display.                           |
+| `onDateChange`         | `(date: moment.Moment) => void` | Callback triggered when navigation dates or selecting a new date. |
+| `slotInterval`         | `number`                        | Duration of each time slot in minutes (e.g., 15, 30, 60).         |
+| `dateFormat`           | `string`                        | Format template for dates (Moment.js compatible).                 |
+| `timeFormat`           | `string`                        | Display format for time (default:`HH:mm`).                      |
 
 ### Events and Interaction
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `events` | `CalendarEvent[]` | Array of event objects to display. |
-| `onEventChange` | `(event: CalendarEvent) => void` | Callback when events are modified. |
-| `onAddEvent` | `(event: CalendarEvent) => void` | Callback when adding a new event via double click empty slots. |
-| `onEditEvent` | `(event: CalendarEvent) => void` | Callback when editing an existing event. |
-| `onDeleteEvent` | `(eventId: string) => void` | Callback when deleting an event. |
+| Prop              | Type                               | Description                                                 |
+| ----------------- | ---------------------------------- | ----------------------------------------------------------- |
+| `events`        | `CalendarEvent[]`                | Array of event objects to display.                          |
+| `onEventChange` | `(event: CalendarEvent) => void` | Callback triggered when an event is modified (drag/resize). |
+| `onAddEvent`    | `(event: CalendarEvent) => void` | Callback when a new event is created via double-click.      |
+| `onEditEvent`   | `(event: CalendarEvent) => void` | Callback when an existing event is edited.                  |
+| `onDeleteEvent` | `(eventId: string) => void`      | Callback when an event is deleted.                          |
 
-### UI and Navigation
+### UI and Navigation Control
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `navigationPosition` | `"left" \| "center" \| "right"` | Position of navigation buttons. |
-| `renderNavigation` | `(actions: { goToPreviousDay: () => void; goToNextDay: () => void; goToToday: () => void; }) => React.ReactNode` | Custom renderer for navigation controls. |
-| `showTodayBelow` | `boolean` | Show small "Today" button below date header. |
-| `showEmptyState` | `boolean` | Whether to show an empty state when no events exist. |
-| `emptyStateContent` | `string` | Custom string for empty state. |
-| `emptyStateContentPopup` | `React.ReactNode` | Custom React node popup for empty state. |
-| `navigateToFirstEvent` | `boolean` | Auto scroll to display the first event in the view. |
+| Prop                     | Type                                                | Description                                                                          |
+| ------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `navigationPosition`   | `"left" \| "center" \| "right"`                     | Horizontal alignment of the navigation controls.                                     |
+| `renderNavigation`     | `(actions: NavigationActions) => React.ReactNode` | Custom renderer for navigation. See[Custom Navigation](#custom-navigation) for details. |
+| `showTodayBelow`       | `boolean`                                         | Show small "Today" button directly below the date header.                            |
+| `showEmptyState`       | `boolean`                                         | Display an empty state illustration when no events are scheduled.                    |
+| `emptyStateContent`    | `string`                                          | Custom text for empty state.                                                         |
+| `navigateToFirstEvent` | `boolean`                                         | Auto-scrolling to the first available event of the day.                              |
 
-### Scheduling Constraints
+---
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `enabledTimeSlots` | `string[]` | Specific time slots (e.g. `["09:00", "09:30"]`) that are enabled. |
-| `disabledTimeSlots` | `string[]` | Specific time slots to disable. |
-| `enabledTimeInterval` | `{ start: string; end: string }[]` | Time ranges (e.g., `[{ start: "09:00", end: "17:00" }]`) that are enabled. |
-| `disableTimeInterval` | `{ start: string; end: string }[]` | Time ranges to disable. |
-| `futureDaysOnly` | `boolean` | Restrict navigation to future days. |
-| `pastDaysOnly` | `boolean` | Restrict navigation to past days. |
-| `currentDayOnly` | `boolean` | Restrict navigation to current day only. |
+## 🎨 Themes and Visuals
 
-### Theming and Extensibility
+`slotrix` comes packed with 10 predefined calendar themes and 10 conflict alert templates.
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `calendarThemeVariant` | `"classic_light" \| "dark_night" \| "slate_modern" \| "emerald_forest" \| "ocean_breeze" \| "midnight_purple" \| "amber_gold" \| "rose_petal" \| "minimal_mono" \| "cyber_punk"` | Apply a predefined color theme. |
-| `calendarTheme` | `CalendarTheme` | Custom calendar theme override (colors). |
-| `conflictThemeVariant` | `"classic_red" \| "amber_warning" \| "indigo_modern" \| "emerald_soft" \| ...` | Apply a predefined template/theme for conflict alerts. |
-| `conflictTemplate` | `ConflictTemplate` | Complete custom rendering and styling of conflict modals. |
-| `onlyCreateEditRequired` | `boolean` | Internal flag enabling built-in create/edit forms on slot double-clicks. |
-| `formFields` | `CalendarFormField[]` | Dynamic fields configuration for the built-in edit form. |
-| `plugins` | `Plugin[]` | Custom plugins for hooking into rendering, clicking, and saving workflows. |
+### Calendar Themes (`calendarThemeVariant`)
+
+| Variant             | Description                               |
+| ------------------- | ----------------------------------------- |
+| `classic_light`   | Clean blue and white professional look.   |
+| `dark_night`      | Deep slate and indigo for night owls.     |
+| `slate_modern`    | Subtle sky blue and slate gray palette.   |
+| `emerald_forest`  | Refreshing green hues for a natural feel. |
+| `ocean_breeze`    | Calm cyan and teal tones.                 |
+| `midnight_purple` | Vibrant purple on a dark background.      |
+| `amber_gold`      | Warm amber and gold accents.              |
+| `rose_petal`      | Elegant rose-red and pink tones.          |
+| `minimal_mono`    | Sophisticated monochrome (Black & White). |
+| `cyber_punk`      | Neon magenta and cyan on pure black.      |
+
+### Conflict Alert Templates (`conflictThemeVariant`)
+
+When events overlap, `slotrix` can display a modal using these templates:
+
+- `classic_red`: Standard urgent alert.
+- `amber_warning`: Cautionary scheduling warning.
+- `indigo_modern`: Sleek modern conflict resolution.
+- `emerald_soft`: Non-intrusive conflict notification.
+- `dark_noir`: Moody, dark-themed alert.
+- `rose_elegant`: Soft red-toned warning.
+- `glassmorphism`: Translucent frosted glass modal.
+- `cyberpunk`: Neon-glow resolution screen.
+- `minimalist`: Simple, no-frills alert.
+- `high_visibility`: High-contrast black and yellow (Danger style).
+
+---
+
+## 🛠️ Advanced Customization
+
+### Custom Navigation
+
+You can completely replace the top navigation bar while keeping the functionality:
+
+```tsx
+const MyCustomNav = ({ goToPreviousDay, goToNextDay, goToToday, currentDate, timezone }) => {
+  const isToday = currentDate.isSame(moment(), 'day');
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+      <button onClick={goToPreviousDay}>← Back</button>
+      <div className={`p-2 rounded-lg ${isToday ? 'bg-blue-100' : ''}`}>
+        {currentDate.format("MMMM Do, YYYY")}
+        <span className="ml-2 text-xs text-gray-500">({timezone})</span>
+      </div>
+      <button onClick={goToNextDay}>Next →</button>
+    </div>
+  );
+};
+
+// Usage
+<DayView renderNavigation={MyCustomNav} ... />
+```
+
+### Plugin System
+
+Use plugins to inject custom logic into the calendar lifecycle:
+
+```tsx
+const MyLoggingPlugin = {
+  name: "Logger",
+  hooks: {
+    onEventClick: (event) => console.log("User clicked:", event.title),
+    validateSave: (event, context) => {
+      if (event.title.length < 3) return "Title is too short!";
+      return null;
+    }
+  }
+};
+
+<DayView plugins={[MyLoggingPlugin]} ... />
+```
+
+---
+
+## 🧩 Types
+
+```typescript
+export interface CalendarEvent {
+    id: string;
+    title: string;
+    start: string | Date | moment.Moment;
+    end: string | Date | moment.Moment;
+    allDay?: boolean;
+    hasConflict?: boolean; // Managed by conflict detection
+    [key: string]: any;
+}
+
+export interface NavigationActions {
+    goToPreviousDay: () => void;
+    goToNextDay: () => void;
+    goToToday: () => void;
+    dateNode: React.ReactNode;
+    prevNode: React.ReactNode;
+    nextNode: React.ReactNode;
+    defaultNav: React.ReactNode;
+    currentDate: moment.Moment;
+    timezone: string;
+    // ... nodes for default rendering
+}
+```
+
+---
 
 ## 📦 Peer Dependencies
-
-To keep the package lightweight, we rely on the following peer dependencies:
 
 - `react` >= 18.0.0
 - `react-dom` >= 18.0.0
 - `moment` ^2.30.1
 - `moment-timezone` ^0.6.0
+
+---
+
+## 📄 License
+
+MIT © [slotrix](https://github.com/Surya9122prakash/slotrix)

@@ -23,14 +23,15 @@ import { PREDEFINED_CONFLICT_TEMPLATES } from "./conflictTemplates";
 import { PREDEFINED_CALENDAR_THEMES } from "./calendarThemes";
 
 export const DayView: React.FC<CalendarProps> = ({
-    timezone,
+    timezone = moment.tz.guess() || "UTC",
     timezoneLabelInclude = false,
-    slotInterval,
-    dateFormat,
-    timeFormat,
-    selectedDate,
-    onDateChange,
-    events,
+    slotInterval = 30,
+    dateFormat = "YYYY-MM-DD",
+    timeFormat = "HH:mm",
+    showTimeSlots = true,
+    selectedDate: externalSelectedDate,
+    onDateChange: externalOnDateChange,
+    events: externalEvents,
     onEventChange,
     navigationPosition = "center",
     showTodayBelow = true,
@@ -46,11 +47,11 @@ export const DayView: React.FC<CalendarProps> = ({
     pastDaysOnly,
     currentDayOnly,
     navigateToFirstEvent,
-    onAddEvent,
-    onEditEvent,
-    onDeleteEvent,
-    formFields,
-    onlyCreateEditRequired,
+    onAddEvent: externalOnAddEvent,
+    onEditEvent: externalOnEditEvent,
+    onDeleteEvent: externalOnDeleteEvent,
+    formFields: externalFormFields,
+    onlyCreateEditRequired = true,
     plugins,
     conflictTemplate,
     conflictThemeVariant,
@@ -59,6 +60,31 @@ export const DayView: React.FC<CalendarProps> = ({
 }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const gridRef = useRef<HTMLDivElement>(null);
+
+    // Uncontrolled State Fallbacks
+    const [internalDate, setInternalDate] = useState<moment.Moment>(() => moment.tz(externalSelectedDate || new Date(), timezone));
+    const selectedDate = externalSelectedDate !== undefined ? externalSelectedDate : internalDate;
+    const onDateChange = (date: moment.Moment) => {
+        if (externalOnDateChange) {
+            externalOnDateChange(date);
+        } else {
+            setInternalDate(date);
+        }
+    };
+
+    const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>(() => externalEvents || []);
+    const events = externalEvents !== undefined ? externalEvents : internalEvents;
+
+    const onAddEvent = externalOnAddEvent || ((event: CalendarEvent) => setInternalEvents((prev) => [...prev, event]));
+    const onEditEvent = externalOnEditEvent || ((event: CalendarEvent) => setInternalEvents((prev) => prev.map((e) => (e.id === event.id ? event : e))));
+    const onDeleteEvent = externalOnDeleteEvent || ((id: string) => setInternalEvents((prev) => prev.filter((e) => e.id !== id)));
+
+    const formFields = externalFormFields || [
+        { name: "title", label: "Event Title", type: "text", required: true },
+        { name: "description", label: "Description", type: "textarea" },
+        { name: "start", label: "Start Time", type: "datetime-local", required: true },
+        { name: "end", label: "End Time", type: "datetime-local", required: true },
+    ];
 
     const activeTheme = useMemo(() => {
         if (calendarTheme) return calendarTheme;
@@ -205,11 +231,13 @@ export const DayView: React.FC<CalendarProps> = ({
                     "minutes"
                 );
 
-                onEventChange?.({
+                const updatedEvent = {
                     ...dragging,
                     start: newStart,
                     end: newStart.clone().add(duration, "minutes"),
-                });
+                };
+                onEventChange?.(updatedEvent);
+                pluginManager.triggerOnEventChange(updatedEvent);
             }
 
             if (resizing) {
@@ -220,10 +248,12 @@ export const DayView: React.FC<CalendarProps> = ({
                     .add(snapped, "minutes");
 
                 if (newEnd.isAfter(resizing.start)) {
-                    onEventChange?.({
+                    const updatedEvent = {
                         ...resizing,
                         end: newEnd,
-                    });
+                    };
+                    onEventChange?.(updatedEvent);
+                    pluginManager.triggerOnEventChange(updatedEvent);
                 }
             }
         };
@@ -241,6 +271,33 @@ export const DayView: React.FC<CalendarProps> = ({
             window.removeEventListener("mouseup", stop);
         };
     }, [dragging, resizing, zonedDate, slotInterval, onEventChange]);
+
+    const handleGridDoubleClick = (e: React.MouseEvent, slot?: moment.Moment) => {
+        let start: moment.Moment;
+        if (slot) {
+            start = slot.clone();
+        } else if (gridRef.current) {
+            const rect = gridRef.current.getBoundingClientRect();
+            const offsetY = e.clientY - rect.top;
+            const minutes = (offsetY / SLOT_HEIGHT) * slotInterval;
+            const snapped = snapMinutes(minutes);
+            start = zonedDate.clone().startOf("day").add(snapped, "minutes");
+        } else {
+            return;
+        }
+
+        // Check if slot is enabled before opening form
+        if (!isSlotEnabled(start)) return;
+
+        const end = start.clone().add(slotInterval, "minutes");
+
+        setEditingEvent(null);
+        setFormData({
+            start: start.format(`${dateFormat || "YYYY-MM-DD"} ${timeFormat || "HH:mm"}`),
+            end: end.format(`${dateFormat || "YYYY-MM-DD"} ${timeFormat || "HH:mm"}`),
+        });
+        setIsFormOpen(true);
+    };
 
     /* -------------------------
        TIME SLOTS
@@ -334,7 +391,7 @@ export const DayView: React.FC<CalendarProps> = ({
     }, [zonedDate, layoutEvents.length, navigateToFirstEvent]);
     const dateNode = (
         <div className="text-center flex flex-col items-center">
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-xl font-semibold px-4 py-1 rounded-full text-white" style={isToday ? { backgroundColor: "var(--calendar-primary)" } : { color: "var(--calendar-text)" }}>
                 {zonedDate.format(dateFormat)}
             </h2>
             {timezoneLabelInclude && (
@@ -379,198 +436,314 @@ export const DayView: React.FC<CalendarProps> = ({
         </div>
     );
 
-    const navNode = renderNavigation ? renderNavigation({ goToPreviousDay, goToNextDay, goToToday }) : null;
+    const navNode = renderNavigation ? renderNavigation({
+        goToPreviousDay,
+        goToNextDay,
+        goToToday,
+        dateNode,
+        prevNode,
+        nextNode,
+        defaultNav,
+        currentDate: zonedDate,
+        timezone,
+    }) : null;
 
     return (
-        <div className="flex flex-col flex-1 min-h-0" style={{ ...themeStyles, backgroundColor: "var(--calendar-bg)", color: "var(--calendar-text)" }}>
+        <div className="flex flex-col flex-1 h-full w-full min-h-0 no-scrollbar" style={{ ...themeStyles, backgroundColor: "var(--calendar-bg)", color: "var(--calendar-text)" }}>
             {/* HEADER */}
-            <div className="sticky top-0 z-20 border-b px-6 py-4 flex items-center min-h-[80px]" style={{ backgroundColor: "var(--calendar-bg)", borderColor: "var(--calendar-grid)" }}>
-                {navigationPosition === "left" && (
-                    <>
-                        <div className="flex-1 flex justify-start items-center">
-                            {navNode || defaultNav}
-                        </div>
-                        <div className="flex-1 flex justify-center items-center">
-                            {dateNode}
-                        </div>
-                        <div className="flex-1 flex justify-end items-center" />
-                    </>
-                )}
-                {navigationPosition === "center" && (
-                    <>
-                        <div className="flex-1 flex justify-start items-center" />
-                        <div className="flex-1 flex justify-center items-center gap-4">
-                            {navNode ? navNode : prevNode}
-                            {dateNode}
-                            {!navNode && nextNode}
-                        </div>
-                        <div className="flex-1 flex justify-end items-center" />
-                    </>
-                )}
-                {navigationPosition === "right" && (
-                    <>
-                        <div className="flex-1 flex justify-start items-center" />
-                        <div className="flex-1 flex justify-center items-center">
-                            {dateNode}
-                        </div>
-                        <div className="flex-1 flex justify-end items-center gap-4">
-                            {navNode || defaultNav}
-                        </div>
-                    </>
-                )}
-            </div>
+            {renderNavigation !== undefined && renderNavigation !== null ? (
+                <div key="custom-nav-wrapper">
+                    {navNode}
+                </div>
+            ) : (
+                <div className="sticky top-0 z-20 border-b px-6 py-4 flex items-center min-h-[80px]" style={{ backgroundColor: "var(--calendar-bg)", borderColor: "var(--calendar-grid)" }}>
+                    {navigationPosition === "left" && (
+                        <>
+                            <div className="flex-1 flex justify-start items-center">
+                                {defaultNav}
+                            </div>
+                            <div className="flex-1 flex justify-center items-center">
+                                {dateNode}
+                            </div>
+                            <div className="flex-1 flex justify-end items-center" />
+                        </>
+                    )}
+                    {navigationPosition === "center" && (
+                        <>
+                            <div className="flex-1 flex justify-start items-center" />
+                            <div className="flex-1 flex justify-center items-center gap-4">
+                                {prevNode}
+                                {dateNode}
+                                {nextNode}
+                            </div>
+                            <div className="flex-1 flex justify-end items-center" />
+                        </>
+                    )}
+                    {navigationPosition === "right" && (
+                        <>
+                            <div className="flex-1 flex justify-start items-center" />
+                            <div className="flex-1 flex justify-center items-center">
+                                {dateNode}
+                            </div>
+                            <div className="flex-1 flex justify-end items-center gap-4">
+                                {defaultNav}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* BODY */}
-            <div className="flex flex-1 min-h-0 m-5">
-                <div ref={scrollRef} className="flex flex-1 overflow-y-auto no-scrollbar">
-                    {/* TIME COLUMN */}
-                    <div className="w-24 flex-shrink-0" style={{ backgroundColor: "var(--calendar-secondary-bg)" }}>
-                        {timeSlots.map((slot, i) => {
-                            const enabled = isSlotEnabled(slot);
-                            return (
-                                <div
-                                    key={i}
-                                    className={`relative text-xs text-right pr-3 border-b border-dotted border-r`}
-                                    style={{
-                                        height: SLOT_HEIGHT,
-                                        borderColor: "var(--calendar-grid)",
-                                        color: enabled ? "var(--calendar-secondary-text)" : "var(--calendar-grid)",
-                                        backgroundColor: enabled ? "transparent" : "var(--calendar-secondary-bg)"
-                                    }}
-                                >
-                                    <span className="absolute top-1/2 -translate-y-1/2 right-2">
-                                        {slot.format(timeFormat)}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* GRID */}
-                    <div ref={gridRef} className="flex-1 relative">
-                        {timeSlots.map((_, i) => (
-                            <div
-                                key={i}
-                                style={{ height: SLOT_HEIGHT, borderColor: "var(--calendar-grid)" }}
-                                className="border-b border-dotted"
-                            />
-                        ))}
-
-                        {/* EVENTS */}
-                        {layoutEvents.map((event) => (
-                            <div
-                                key={event.id}
-                                ref={(el) => {
-                                    if (el) pluginManager.triggerOnEventRender(event, el);
-                                }}
-                                onMouseDown={() => setDragging(event)}
-                                onDoubleClick={() => {
-                                    pluginManager.triggerOnEventClick(event);
-                                    if (!onEditEvent) return;
-
-                                    setEditingEvent(event);
+            {showTimeSlots === false ? (
+                <div className="flex flex-col flex-1 min-h-0 m-5 p-4 overflow-y-auto no-scrollbar relative">
+                    {/* Add Event Button for Agenda View */}
+                    {onlyCreateEditRequired && (
+                        <div className="flex justify-end mb-4">
+                            <button
+                                onClick={() => {
+                                    setEditingEvent(null);
+                                    const start = zonedDate.clone().hour(9).minute(0);
+                                    const end = start.clone().add(slotInterval, "minutes");
                                     setFormData({
-                                        ...event,
-                                        start: moment(event.start).tz(timezone).format("YYYY-MM-DDTHH:mm"),
-                                        end: moment(event.end).tz(timezone).format("YYYY-MM-DDTHH:mm"),
+                                        start: start.format("YYYY-MM-DDTHH:mm"),
+                                        end: end.format("YYYY-MM-DDTHH:mm"),
                                     });
                                     setIsFormOpen(true);
                                 }}
-                                className="absolute rounded px-2 text-sm cursor-move"
-                                style={{
-                                    top: event.top,
-                                    height: event.height,
-                                    left: `${(event.columnIndex /
-                                        event.columnCount) *
-                                        100
-                                        }%`,
-                                    width: `${100 / event.columnCount}%`,
-                                    backgroundColor: "var(--calendar-event-bg)",
-                                    color: "var(--calendar-event-text)"
-                                }}
+                                className="px-4 py-2 text-sm text-white rounded shadow transition-colors"
+                                style={{ backgroundColor: "var(--calendar-primary)" }}
                             >
-                                {event.title}
+                                + Add Event
+                            </button>
+                        </div>
+                    )}
 
-                                {/* DELETE */}
-                                {onDeleteEvent && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onDeleteEvent(event.id);
-                                        }}
-                                        className="absolute top-1 right-1 text-xs bg-red-500 rounded px-1"
-                                    >
-                                        ✕
-                                    </button>
-                                )}
-
-                                {/* RESIZE HANDLE */}
+                    {dayEvents.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[200px] border-2 border-dashed rounded-xl" style={{ borderColor: 'var(--calendar-grid)' }}>
+                            <p className="text-gray-500 font-medium mb-4">{emptyStateContent || "No events scheduled"}</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3 pb-8">
+                            {dayEvents.sort((a, b) => moment(a.start).diff(moment(b.start))).map(event => (
                                 <div
-                                    onMouseDown={(e) => {
+                                    key={event.id}
+                                    onClick={(e) => {
                                         e.stopPropagation();
-                                        setResizing(event);
+                                        pluginManager.triggerOnEventClick(event);
+                                        if (onlyCreateEditRequired) {
+                                            setEditingEvent(event);
+                                            setFormData({
+                                                ...event,
+                                                start: moment(event.start).tz(timezone).format("YYYY-MM-DDTHH:mm"),
+                                                end: moment(event.end).tz(timezone).format("YYYY-MM-DDTHH:mm"),
+                                            });
+                                            setIsFormOpen(true);
+                                        }
                                     }}
-                                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize"
-                                    style={{ backgroundColor: "var(--calendar-primary)", opacity: 0.5 }}
-                                />
-                            </div>
-                        ))}
-
-                        {/* ANIMATED EMPTY STATE (ONLY WORKING HOURS) */}
-                        {showEmptyState &&
-                            layoutEvents.length === 0 &&
-                            !isDateRestricted && (
-                                <div
-                                    className="absolute left-0 right-0 flex items-center justify-center animate-fadeIn"
+                                    className="p-4 rounded-xl border flex flex-col cursor-pointer transition-transform hover:scale-[1.01] shadow-sm relative group"
                                     style={{
-                                        top:
-                                            (workingHoursRange.startMinutes /
-                                                slotInterval) *
-                                            SLOT_HEIGHT,
-                                        height:
-                                            ((workingHoursRange.endMinutes -
-                                                workingHoursRange.startMinutes) /
-                                                slotInterval) *
-                                            SLOT_HEIGHT,
+                                        backgroundColor: "var(--calendar-event-bg)",
+                                        color: "var(--calendar-event-text)",
+                                        borderColor: "var(--calendar-grid)",
+                                        borderLeft: `4px solid var(--calendar-primary)`
                                     }}
                                 >
-                                    <div className="bg-white shadow-xl rounded-2xl px-8 py-6 border text-center animate-scaleIn">
-                                        <p className="text-gray-600 font-medium">
-                                            {emptyStateContent || "No events scheduled"}
-                                        </p>
-
-                                        {emptyStateContentPopup ? emptyStateContentPopup : (
-                                            onAddEvent && (
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingEvent(null);
-                                                        setFormData({});
-                                                        setIsFormOpen(true);
-                                                    }}
-                                                    className="mt-4 px-4 py-2 text-white rounded"
-                                                    style={{ backgroundColor: "var(--calendar-primary)" }}
-                                                >
-                                                    Add Event
-                                                </button>
-                                            )
-                                        )}
+                                    <div className="flex justify-between items-start">
+                                        <div className="font-semibold text-base">{event.title}</div>
+                                        {/* DELETE */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteEvent(event.id);
+                                            }}
+                                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                                            title="Delete Event"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <div className="text-sm opacity-80 mt-1">
+                                        {moment(event.start).tz(timezone).format(timeFormat)} - {moment(event.end).tz(timezone).format(timeFormat)}
                                     </div>
                                 </div>
-                            )}
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar">
+                    <div className="flex min-h-full">
+                        {/* TIME COLUMN */}
+                        <div className="w-24 flex-shrink-0" style={{ backgroundColor: "var(--calendar-secondary-bg)" }}>
+                            {timeSlots.map((slot, i) => {
+                                const enabled = isSlotEnabled(slot);
+                                return (
+                                    <div
+                                        key={i}
+                                        className={`relative text-xs text-right pr-3 border-b border-dotted border-r`}
+                                        style={{
+                                            height: SLOT_HEIGHT,
+                                            borderColor: "var(--calendar-grid)",
+                                            color: enabled ? "var(--calendar-secondary-text)" : "var(--calendar-grid)",
+                                            cursor: enabled ? "pointer" : "not-allowed",
+                                            backgroundColor: enabled ? "transparent" : "var(--calendar-secondary-bg)"
+                                        }}
+                                    >
+                                        <span className="absolute top-1/2 -translate-y-1/2 right-2">
+                                            {slot.format(timeFormat)}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
 
-                        {/* CURRENT TIME LINE */}
-                        {isToday && (
-                            <div
-                                className="absolute left-0 right-0 border-t-2"
-                                style={{
-                                    borderColor: "var(--calendar-primary)",
-                                    top: ((now.hours() * 60 + now.minutes()) / slotInterval) * SLOT_HEIGHT,
-                                }}
-                            />
-                        )}
+                        {/* GRID */}
+                        <div ref={gridRef} className="flex-1 relative" onDoubleClick={(e) => handleGridDoubleClick(e)}>
+                            {timeSlots.map((slot, i) => {
+                                const enabled = isSlotEnabled(slot);
+                                return (
+                                    <div
+                                        key={i}
+                                        onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            if (enabled) {
+                                                handleGridDoubleClick(e, slot);
+                                            }
+                                        }}
+                                        style={{
+                                            height: SLOT_HEIGHT,
+                                            borderColor: "var(--calendar-grid)",
+                                            cursor: enabled ? "pointer" : "not-allowed",
+                                            backgroundColor: enabled ? "transparent" : "rgba(0,0,0,0.02)"
+                                        }}
+                                        className={`border-b border-dotted transition-colors ${enabled ? "hover:bg-gray-50" : ""}`}
+                                    />
+                                );
+                            })}
+
+                            {/* EVENTS */}
+                            {layoutEvents.map((event) => (
+                                <div
+                                    key={event.id}
+                                    ref={(el) => {
+                                        if (el) pluginManager.triggerOnEventRender(event, el);
+                                    }}
+                                    onMouseDown={() => setDragging(event)}
+                                    onDoubleClick={(e) => {
+                                        e.stopPropagation();
+                                        pluginManager.triggerOnEventClick(event);
+                                        if (!onEditEvent) return;
+
+                                        setEditingEvent(event);
+                                        setFormData({
+                                            ...event,
+                                            start: moment(event.start).tz(timezone).format(`${dateFormat || "YYYY-MM-DD"} ${timeFormat || "HH:mm"}`),
+                                            end: moment(event.end).tz(timezone).format(`${dateFormat || "YYYY-MM-DD"} ${timeFormat || "HH:mm"}`),
+                                        });
+                                        setIsFormOpen(true);
+                                    }}
+                                    className="absolute rounded px-2 text-sm cursor-move z-10"
+                                    style={{
+                                        top: event.top,
+                                        height: event.height,
+                                        left: `${(event.columnIndex /
+                                            event.columnCount) *
+                                            100
+                                            }%`,
+                                        width: `${100 / event.columnCount}%`,
+                                        backgroundColor: "var(--calendar-event-bg)",
+                                        color: "var(--calendar-event-text)"
+                                    }}
+                                >
+                                    {event.title}
+
+                                    {/* DELETE */}
+                                    {onDeleteEvent && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteEvent(event.id);
+                                            }}
+                                            className="absolute top-1 right-1 text-xs bg-red-500 rounded px-1"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+
+                                    {/* RESIZE HANDLE */}
+                                    <div
+                                        onMouseDown={(e) => {
+                                            e.stopPropagation();
+                                            setResizing(event);
+                                        }}
+                                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize"
+                                        style={{ backgroundColor: "var(--calendar-primary)", opacity: 0.5 }}
+                                    />
+                                </div>
+                            ))}
+
+                            {/* ANIMATED EMPTY STATE (ONLY WORKING HOURS) */}
+                            {showEmptyState &&
+                                layoutEvents.length === 0 &&
+                                !isDateRestricted && (
+                                    <div
+                                        className="absolute left-0 right-0 flex items-center justify-center animate-fadeIn"
+                                        onDoubleClick={(e) => {
+                                            if (!isDateRestricted) {
+                                                handleGridDoubleClick(e);
+                                            }
+                                        }}
+                                        style={{
+                                            top:
+                                                (workingHoursRange.startMinutes /
+                                                    slotInterval) *
+                                                SLOT_HEIGHT,
+                                            height:
+                                                ((workingHoursRange.endMinutes -
+                                                    workingHoursRange.startMinutes) /
+                                                    slotInterval) *
+                                                SLOT_HEIGHT,
+                                            cursor: isDateRestricted ? "not-allowed" : "pointer"
+                                        }}
+                                    >
+                                        <div className="bg-white shadow-xl rounded-2xl px-8 py-6 border text-center animate-scaleIn">
+                                            <p className="text-gray-600 font-medium">
+                                                {emptyStateContent || "No events scheduled"}
+                                            </p>
+
+                                            {emptyStateContentPopup ? emptyStateContentPopup : (
+                                                (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingEvent(null);
+                                                            setFormData({});
+                                                            setIsFormOpen(true);
+                                                        }}
+                                                        className="mt-4 px-4 py-2 text-white rounded"
+                                                        style={{ backgroundColor: "var(--calendar-primary)" }}
+                                                    >
+                                                        Add Event
+                                                    </button>
+                                                )
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                            {/* CURRENT TIME LINE */}
+                            {isToday && (
+                                <div
+                                    className="absolute left-0 right-0 border-t-2"
+                                    style={{
+                                        borderColor: "var(--calendar-primary)",
+                                        top: ((now.hours() * 60 + now.minutes()) / slotInterval) * SLOT_HEIGHT,
+                                    }}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* INTERNAL CREATE / EDIT MODAL */}
             {onlyCreateEditRequired && (
@@ -582,11 +755,19 @@ export const DayView: React.FC<CalendarProps> = ({
                     setFormData={setFormData}
                     formFields={formFields}
                     timezone={timezone}
+                    dateFormat={dateFormat}
+                    timeFormat={timeFormat}
                     onAddEvent={onAddEvent}
                     onEditEvent={onEditEvent}
                     onDeleteEvent={onDeleteEvent}
                     pluginManager={pluginManager}
                     conflictTemplate={conflictTemplate || (conflictThemeVariant ? (PREDEFINED_CONFLICT_TEMPLATES as any)[conflictThemeVariant] : undefined)}
+                    slotInterval={slotInterval}
+                    enabledTimeSlots={enabledTimeSlots}
+                    disabledTimeSlots={disabledTimeSlots}
+                    enabledTimeInterval={enabledTimeInterval}
+                    disableTimeInterval={disableTimeInterval}
+                    events={safeEvents}
                 />
             )}
         </div>

@@ -1,5 +1,5 @@
 {
-  "name": "slotrix-calendar",
+  "name": "slotrix",
   "version": "1.0.0",
   "type": "module",
   "description": "A powerful, framework-agnostic, and highly customizable React calendar component library.",
@@ -25,6 +25,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-react": "^5.1.4",
+    "slotrix-calendar": "file:slotrix-calendar-1.1.7.tgz",
     "tailwindcss": "^4.2.1"
   },
   "files": [
@@ -37,6 +38,9 @@
     "react-dom": ">=18.0.0"
   },
   "devDependencies": {
+    "@types/node": "^25.4.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "typescript": "~5.9.3",
     "vite": "^7.3.1"
   }
